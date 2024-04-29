@@ -8,11 +8,11 @@ mod tun;
 fn outgoing_thread(tun: &TUN, sender: std::sync::mpsc::Sender<Vec<u8>>) {
     loop {
         let mut buf = [0u8; 0x800];
-        let bytes_read = tun.recv_pkt(&mut buf).expect("Failed to receive pkt!");
+        let bytes_read = tun.recv_pkt(&mut buf).expect("Failed to receive pkt!");        
+        sender.send(buf[..bytes_read].to_vec()).unwrap();
+        
         println!("read {bytes_read} bytes:");
         println!("    {}", buf[..bytes_read].escape_ascii());
-
-        sender.send(buf[..bytes_read].to_vec()).unwrap();
     }
 }
 
@@ -23,14 +23,14 @@ fn incoming_thread(tun: &TUN, recv: std::sync::mpsc::Receiver<Vec<u8>>) {
             continue;
         }
 
-        println!("got echo pkt!");
         let mut dst: [u8; 4] = pkt[16..20].try_into().unwrap();
         pkt[12..16].swap_with_slice(&mut dst);
         pkt[16..20].copy_from_slice(dst.as_slice());
         pkt[20..22].copy_from_slice(&[0u8, 0u8]);
         icmp_chksum(&mut pkt[20..]);
-
+        
         tun.send_pkt(pkt.as_slice()).expect("Failed to send packet");
+        println!("got echo pkt!");
     }
 }
 
